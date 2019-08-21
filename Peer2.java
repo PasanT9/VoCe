@@ -52,7 +52,7 @@ public class Peer2
                 int bytesRead = 0;
                 System.out.println("Recording !!!");
                 try {
-                    while (bytesRead < 400) { // Just so I can test if recording
+                    while (bytesRead < 500) { // Just so I can test if recording
                                                     // my mic works...
                         numBytesRead = microphone.read(data, 0, CHUNK_SIZE);
                         bytesRead = bytesRead + numBytesRead;
