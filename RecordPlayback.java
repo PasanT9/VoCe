@@ -82,7 +82,6 @@ private void captureAudio() {
         //Setting the maximum volume
         FloatControl control = (FloatControl)sourceDataLine.getControl(FloatControl.Type.MASTER_GAIN);
         control.setValue(control.getMaximum());
-
         captureAndPlay(); //playing the audio
 
     } catch (LineUnavailableException e) {
@@ -98,10 +97,13 @@ private void captureAudio() {
         try {
             int readCount;
             while (!stopCapture) {
+
                 readCount = targetDataLine.read(tempBuffer, 0, tempBuffer.length);  //capture sound into tempBuffer
+                System.out.println("Read->" + tempBuffer);
                 if (readCount > 0) {
                     byteArrayOutputStream.write(tempBuffer, 0, readCount);
                     sourceDataLine.write(tempBuffer, 0, 500);   //playing audio available in tempBuffer
+                    System.out.println("Write->" + tempBuffer);
                 }
             }
             byteArrayOutputStream.close();
