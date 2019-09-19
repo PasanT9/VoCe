@@ -26,7 +26,7 @@ public class Peer
   final DataOutputStream dos;
   final Socket s;
 
-  static byte[][] memBuffer = new byte[16][];
+  static byte[][] memBuffer = new byte[16][500];
   static int packetCount = 0;
 
   boolean stopCapture = false;
@@ -100,98 +100,107 @@ public class Peer
     stopCapture = false;
     try {
       int readCount;
+
+      //Play non-stop
       while (!stopCapture) {
 
+        //Listen to sockets for any data. Record any incoming data to temp buffer
         readCount = dis.read(tempBuffer);
-        /*System.out.println(tempBuffer[499]);
-        if(tempBuffer[499] <0 || tempBuffer[499] > 15){
-        System.out.println("Packet Dropped");
-        continue;
-      }*/
-      if (readCount > 0 && (tempBuffer[499] >= 0 && tempBuffer[499] <= 15)) {
-        int currentPacket = tempBuffer[499];
-        System.out.println("Expected: "+packetCount+" "+"Arrived: "+currentPacket);
-        if(currentPacket != packetCount){
-          System.out.println("Not in Sequence");
-          if(memBuffer[packetCount] == null){
-            System.out.println("Not in Buffer");
-            memBuffer[currentPacket] = tempBuffer;
-            int packets=0;
-            do{
-              System.out.println("Wait packets for: " + packetCount);
-              readCount = dis.read(tempBuffer);
-              ++packets;
-              if(readCount > 0 && (tempBuffer[499] >= 0 && tempBuffer[499] <= 15)){
-                currentPacket = tempBuffer[499];
-                memBuffer[currentPacket] = tempBuffer;
-                System.out.println("Into buffer: " + currentPacket);
+
+        //Packet re-arranging algorithm
+
+//------------------------------------------------------------------------------------------------------
+        if (readCount > 0 && (tempBuffer[499] >= 0 && tempBuffer[499] <= 15)) {
+          int currentPacket = tempBuffer[499];
+          System.out.println("Expected: "+packetCount+" "+"Arrived: "+currentPacket);
+          if(currentPacket != packetCount){
+            System.out.println("Not in Sequence");
+            if(memBuffer[packetCount] == null){
+              System.out.println("Not in Buffer");
+              memBuffer[currentPacket] = Arrays.copyOf(tempBuffer, 500);
+              int packets=0;
+              do{
+                System.out.println("Wait packets for: " + packetCount);
+                readCount = dis.read(tempBuffer);
+                ++packets;
+                if(readCount > 0 && (tempBuffer[499] >= 0 && tempBuffer[499] <= 15)){
+                  currentPacket = tempBuffer[499];
+                  memBuffer[currentPacket] = Arrays.copyOf(tempBuffer, 500);
+                  System.out.println("Into buffer: " + currentPacket);
+                }
+              }while(currentPacket != packetCount && packets < 5);
+              if(packets == 5){
+                System.out.println("Packet Drop");
+                ++packetCount;
+                packetCount %= 16;
+                continue;
               }
-            }while(currentPacket != packetCount && packets < 5);
-            if(packets == 5){
-              System.out.println("Packet Drop");
-              ++packetCount;
-              packetCount %= 16;
-              continue;
+            }
+            else{
+              System.out.println("Exist in Buffer: "+packetCount);
+              tempBuffer = Arrays.copyOf(memBuffer[packetCount], 500);
+              memBuffer[packetCount] = null;
             }
           }
-          else{
-            System.out.println("Exist in Buffer");
-            tempBuffer = memBuffer[packetCount];
-            memBuffer[packetCount] = null;
+  //------------------------------------------------------------------------------------------------------
+
+          //Play data in temp buffer
+          byteArrayOutputStream.write(tempBuffer, 0, 500);
+          System.out.println("Playing: "+tempBuffer[499]);
+          sourceDataLine.write(tempBuffer, 0, 500);   //playing audio available in tempBuffer
+
+  //--------------------------------------------------------------------------------------------------------
+          ++packetCount;
+          packetCount %= 16;
+          if(packetCount == 0){
+            initializeMemBuffer();
           }
         }
-        System.out.println(tempBuffer[499]);
-        byteArrayOutputStream.write(tempBuffer, 0, readCount);
-        System.out.println("Playing: "+tempBuffer[499]);
-        sourceDataLine.write(tempBuffer, 0, 500);   //playing audio available in tempBuffer
-        ++packetCount;
-        packetCount %= 16;
       }
+      byteArrayOutputStream.close();
+    } catch (IOException e) {
+      System.out.println(e);
+      System.exit(0);
     }
-    byteArrayOutputStream.close();
-  } catch (IOException e) {
-    System.out.println(e);
-    System.exit(0);
   }
-}
 
-private static void initializeMemBuffer(){
-  for(int i=0;i<16;++i)
+  private static void initializeMemBuffer(){
+    for(int i=0;i<16;++i)
+    {
+      memBuffer[i] = null;
+    }
+  }
+
+
+  public static void main(String[] args) throws IOException
   {
-    memBuffer[i] = null;
+    ServerSocket ss = new ServerSocket(5000);
+    Socket s = null;
+
+    try
+    {
+      s = ss.accept();
+
+      System.out.println("A new client is connected : " + s);
+
+      // obtaining input and out streams
+      DataInputStream dis = new DataInputStream(s.getInputStream());
+      DataOutputStream dos = new DataOutputStream(s.getOutputStream());
+
+      System.out.println("Assigning new thread for this client");
+
+      Peer peer = new Peer(s,dis,dos);
+      initializeMemBuffer();
+      peer.captureAudio();
+
+      s.close();
+      dis.close();
+      dos.close();
+
+    }
+    catch (Exception e){
+      s.close();
+      e.printStackTrace();
+    }
   }
-}
-
-
-public static void main(String[] args) throws IOException
-{
-  ServerSocket ss = new ServerSocket(5056);
-  Socket s = null;
-
-  try
-  {
-    s = ss.accept();
-
-    System.out.println("A new client is connected : " + s);
-
-    // obtaining input and out streams
-    DataInputStream dis = new DataInputStream(s.getInputStream());
-    DataOutputStream dos = new DataOutputStream(s.getOutputStream());
-
-    System.out.println("Assigning new thread for this client");
-
-    Peer peer = new Peer(s,dis,dos);
-    initializeMemBuffer();
-    peer.captureAudio();
-
-    s.close();
-    dis.close();
-    dos.close();
-
-  }
-  catch (Exception e){
-    s.close();
-    e.printStackTrace();
-  }
-}
 }
