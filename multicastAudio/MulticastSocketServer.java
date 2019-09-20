@@ -3,6 +3,12 @@ import java.text.*;
 import java.util.*;
 import java.net.*;
 
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import javax.sound.sampled.AudioFormat;
@@ -16,10 +22,15 @@ import javax.sound.sampled.Mixer;
 import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.TargetDataLine;
 
-// Client class
-public class PeerClient
-{
 
+public class MulticastSocketServer {
+
+   final static String INET_ADDR = "224.0.0.3";
+   final static int PORT = 20000;
+
+   static byte[][] memBuffer = new byte[16][];
+   static int packetCount = 0;
+   byte tempBuffer[] = new byte[500];
 
    boolean stopCapture = false;
    ByteArrayOutputStream byteArrayOutputStream;
@@ -27,17 +38,33 @@ public class PeerClient
    TargetDataLine targetDataLine;
    AudioInputStream audioInputStream;
    SourceDataLine sourceDataLine;
-   byte tempBuffer[] = new byte[500];
-   byte playBuffer[] = new byte[500];
 
-   final DataInputStream dis;
-   final DataOutputStream dos;
-   final Socket s;
+   public MulticastSocketServer(){
 
-   public PeerClient(Socket s, DataInputStream dis, DataOutputStream dos){
-      this.s = s;
-      this.dis = dis;
-      this.dos = dos;
+   }
+
+   public void run(){
+      InetAddress addr = InetAddress.getByName(INET_ADDR);
+      int i=0;
+
+      try (DatagramSocket serverSocket = new DatagramSocket()) {
+         System.out.println("A new client is connected : " + serverSocket);
+
+         //------------
+         captureAudio();
+
+         // ---------------------------------------------
+
+      } catch (IOException ex) {
+         ex.printStackTrace();
+      }
+   }
+
+   public static void main(String[] args) throws UnknownHostException, InterruptedException {
+
+      MulticastSocketServer ms = new MulticastSocketServer();
+
+      ms.run();
    }
 
    private AudioFormat getAudioFormat() {
@@ -83,7 +110,7 @@ public class PeerClient
          FloatControl control = (FloatControl)sourceDataLine.getControl(FloatControl.Type.MASTER_GAIN);
          control.setValue(control.getMaximum());
 
-         captureAndPlay(); //playing the audio
+         //captureAndPlay(); //playing the audio
 
       } catch (LineUnavailableException e) {
          System.out.println(e);
@@ -92,53 +119,4 @@ public class PeerClient
 
    }
 
-   private void captureAndPlay() {
-
-      byteArrayOutputStream = new ByteArrayOutputStream();
-      stopCapture = false;
-      try {
-         int seq = 0;
-         while (!stopCapture) {
-            targetDataLine.read(tempBuffer, 0, tempBuffer.length);  //capture sound into tempBuffer
-            seq = seq%16;
-            tempBuffer[499] = (byte)seq++;
-            System.out.println(tempBuffer[499]);
-            dos.write(tempBuffer);
-
-         }
-         byteArrayOutputStream.close();
-      } catch (IOException e) {
-         System.out.println(e);
-         System.exit(0);
-      }
-   }
-
-   public static void main(String[] args) throws IOException
-   {
-      try
-      {
-
-         // getting localhost ip
-         InetAddress ip = InetAddress.getByName("localhost");
-
-         // establish the connection with server port 5056
-         Socket s = new Socket(ip, 5056);
-
-         // obtaining input and out streams
-         DataInputStream dis = new DataInputStream(s.getInputStream());
-         DataOutputStream dos = new DataOutputStream(s.getOutputStream());
-         System.out.println("Connection Created");
-         PeerClient peer = new PeerClient(s,dis,dos);
-         peer.captureAudio();
-         // the following loop performs the exchange of
-         // information between client and client handler
-
-         // closing resources
-         s.close();
-         dis.close();
-         dos.close();
-      }catch(Exception e){
-         e.printStackTrace();
-      }
-   }
 }

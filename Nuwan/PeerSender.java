@@ -16,10 +16,35 @@ import javax.sound.sampled.Mixer;
 import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.TargetDataLine;
 
-// Client class
-public class PeerClient
-{
+public class PeerSender extends Thread{
+   // new
+   MulticastSender ms;
+   //Thread broadcastThread;
+   boolean setupCompleted; // this will be true if setupAudioStream() is called
+   boolean enableBroadcast;
 
+   Thread broadcastThread = new Thread("Broadcast Thread") {
+      public void run(){
+         System.out.println("Broadcast thread is ready now");
+         while(true){
+            if(enableBroadcast==true){
+               captureAndTransmit();
+            }else{
+               try{
+                  broadcastThread.sleep(500);
+               }catch(Exception e){
+
+               }
+            }
+            //Thread.sleep(100);
+            //System.out.println(".");
+         }
+      }
+   };
+
+   // Old
+   static byte[][] memBuffer = new byte[16][];
+   static int packetCount = 0;
 
    boolean stopCapture = false;
    ByteArrayOutputStream byteArrayOutputStream;
@@ -28,34 +53,20 @@ public class PeerClient
    AudioInputStream audioInputStream;
    SourceDataLine sourceDataLine;
    byte tempBuffer[] = new byte[500];
-   byte playBuffer[] = new byte[500];
 
-   final DataInputStream dis;
-   final DataOutputStream dos;
-   final Socket s;
-
-   public PeerClient(Socket s, DataInputStream dis, DataOutputStream dos){
-      this.s = s;
-      this.dis = dis;
-      this.dos = dos;
+   public PeerSender(MulticastSender multicastSender){
+      this.ms = multicastSender;
+      initializeMemBuffer();
+      setupCompleted = false;
+      enableBroadcast = false;
+      broadcastThread.start();
    }
-
-   private AudioFormat getAudioFormat() {
-      float sampleRate = 16000.0F;
-      int sampleSizeInBits = 16;
-      int channels = 2;
-      boolean signed = true;
-      boolean bigEndian = true;
-      return new AudioFormat(sampleRate, sampleSizeInBits, channels, signed, bigEndian);
-   }
-
-   private void captureAudio() {
-
+   public void setupAudioStream() {
       try {
-         Mixer.Info[] mixerInfo = AudioSystem.getMixerInfo();    //get available mixers
+         // Get available mixers and print them to STDOUT
+         Mixer.Info[] mixerInfo = AudioSystem.getMixerInfo();
          System.out.println("Available mixers:");
          Mixer mixer = null;
-
          for (int cnt = 0; cnt < mixerInfo.length; cnt++) {
             System.out.println(cnt + " " + mixerInfo[cnt].getName());
             mixer = AudioSystem.getMixer(mixerInfo[cnt]);
@@ -67,7 +78,8 @@ public class PeerClient
             }
          }
 
-         audioFormat = getAudioFormat();     //get the audio format
+         // Get the audio format
+         audioFormat = getAudioFormat();
          DataLine.Info dataLineInfo = new DataLine.Info(TargetDataLine.class, audioFormat);
 
          targetDataLine = (TargetDataLine) mixer.getLine(dataLineInfo);
@@ -83,7 +95,7 @@ public class PeerClient
          FloatControl control = (FloatControl)sourceDataLine.getControl(FloatControl.Type.MASTER_GAIN);
          control.setValue(control.getMaximum());
 
-         captureAndPlay(); //playing the audio
+         setupCompleted = true;
 
       } catch (LineUnavailableException e) {
          System.out.println(e);
@@ -92,53 +104,50 @@ public class PeerClient
 
    }
 
-   private void captureAndPlay() {
+   public void sendStart(){
+      if(setupCompleted==false){
+         setupAudioStream();
+      }
+      System.out.println("Broadcast thread is started now");
+      enableBroadcast = true;
+   }
+   public void sendStop(){
+      enableBroadcast = false;
+      //broadcastThread.stop();
+   }
 
-      byteArrayOutputStream = new ByteArrayOutputStream();
-      stopCapture = false;
+   private AudioFormat getAudioFormat() {
+      float sampleRate = 16000.0F;
+      int sampleSizeInBits = 16;
+      int channels = 2;
+      boolean signed = true;
+      boolean bigEndian = true;
+      return new AudioFormat(sampleRate, sampleSizeInBits, channels, signed, bigEndian);
+   }
+   private static void initializeMemBuffer(){
+      for(int i=0;i<16;++i){
+         memBuffer[i] = null;
+      }
+   }
+
+   private void captureAndTransmit() {
+
+      //byteArrayOutputStream = new ByteArrayOutputStream();
+      //stopCapture = false;
       try {
          int seq = 0;
-         while (!stopCapture) {
+         while (enableBroadcast) {
             targetDataLine.read(tempBuffer, 0, tempBuffer.length);  //capture sound into tempBuffer
             seq = seq%16;
             tempBuffer[499] = (byte)seq++;
-            System.out.println(tempBuffer[499]);
-            dos.write(tempBuffer);
-
+            //System.out.println(tempBuffer[499]);
+            ms.write(tempBuffer);
          }
-         byteArrayOutputStream.close();
-      } catch (IOException e) {
+         //byteArrayOutputStream.close();
+      } catch (Exception e) {
          System.out.println(e);
          System.exit(0);
       }
    }
 
-   public static void main(String[] args) throws IOException
-   {
-      try
-      {
-
-         // getting localhost ip
-         InetAddress ip = InetAddress.getByName("localhost");
-
-         // establish the connection with server port 5056
-         Socket s = new Socket(ip, 5056);
-
-         // obtaining input and out streams
-         DataInputStream dis = new DataInputStream(s.getInputStream());
-         DataOutputStream dos = new DataOutputStream(s.getOutputStream());
-         System.out.println("Connection Created");
-         PeerClient peer = new PeerClient(s,dis,dos);
-         peer.captureAudio();
-         // the following loop performs the exchange of
-         // information between client and client handler
-
-         // closing resources
-         s.close();
-         dis.close();
-         dos.close();
-      }catch(Exception e){
-         e.printStackTrace();
-      }
-   }
 }

@@ -21,7 +21,7 @@ public class PeerServer{
 
    final DataInputStream dis;
    final DataOutputStream dos;
-   final Socket s;
+   final DatagramSocket s;
 
    static byte[][] memBuffer = new byte[16][];
    static int packetCount = 0;
@@ -34,7 +34,7 @@ public class PeerServer{
    SourceDataLine sourceDataLine;
    byte tempBuffer[] = new byte[500];
 
-   public PeerServer(Socket s, DataInputStream dis, DataOutputStream dos){
+   public PeerServer(DatagramSocket s, DataInputStream dis, DataOutputStream dos){
       this.s = s;
       this.dis = dis;
       this.dos = dos;

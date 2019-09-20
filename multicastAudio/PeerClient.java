@@ -104,41 +104,44 @@ public class PeerClient
             tempBuffer[499] = (byte)seq++;
             System.out.println(tempBuffer[499]);
             dos.write(tempBuffer);
-
-         }
-         byteArrayOutputStream.close();
-      } catch (IOException e) {
-         System.out.println(e);
-         System.exit(0);
+            /*if (readCount > 0) {
+            byteArrayOutputStream.write(tempBuffer, 0, readCount);
+            sourceDataLine.write(tempBuffer, 0, 500);   //playing audio available in tempBuffer
+         }*/
       }
+      byteArrayOutputStream.close();
+   } catch (IOException e) {
+      System.out.println(e);
+      System.exit(0);
    }
+}
 
-   public static void main(String[] args) throws IOException
+public static void main(String[] args) throws IOException
+{
+   try
    {
-      try
-      {
 
-         // getting localhost ip
-         InetAddress ip = InetAddress.getByName("localhost");
+      // getting localhost ip
+      InetAddress ip = InetAddress.getByName("localhost");
 
-         // establish the connection with server port 5056
-         Socket s = new Socket(ip, 5056);
+      // establish the connection with server port 5056
+      Socket s = new Socket(ip, 5056);
 
-         // obtaining input and out streams
-         DataInputStream dis = new DataInputStream(s.getInputStream());
-         DataOutputStream dos = new DataOutputStream(s.getOutputStream());
-         System.out.println("Connection Created");
-         PeerClient peer = new PeerClient(s,dis,dos);
-         peer.captureAudio();
-         // the following loop performs the exchange of
-         // information between client and client handler
+      // obtaining input and out streams
+      DataInputStream dis = new DataInputStream(s.getInputStream());
+      DataOutputStream dos = new DataOutputStream(s.getOutputStream());
+      System.out.println("Connection Created");
+      PeerClient peer = new PeerClient(s,dis,dos);
+      peer.captureAudio();
+      // the following loop performs the exchange of
+      // information between client and client handler
 
-         // closing resources
-         s.close();
-         dis.close();
-         dos.close();
-      }catch(Exception e){
-         e.printStackTrace();
-      }
+      // closing resources
+      s.close();
+      dis.close();
+      dos.close();
+   }catch(Exception e){
+      e.printStackTrace();
    }
+}
 }
