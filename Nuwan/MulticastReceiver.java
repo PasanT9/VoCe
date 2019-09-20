@@ -13,13 +13,14 @@ public class MulticastReceiver{
 
    byte[] buf = new byte[256];
 
-   public MulticastReceiver()  throws UnknownHostException{ //
+   public MulticastReceiver()  throws UnknownHostException{
+      // Address and the port are hardcoded for now
       INET_ADDR = "224.0.0.3";
       PORT = 20000;
-
       this.addr = InetAddress.getByName(INET_ADDR);
 
       try{
+         //Initialize MulticastSocket on given port and join to it as a client
          clientSocket = new MulticastSocket(PORT);
          clientSocket.joinGroup(addr);
 
@@ -28,17 +29,21 @@ public class MulticastReceiver{
       }
    }
 
-   public DatagramPacket receive(){
+   // Receive a byte stream
+   public byte[] receive(){
       try{
          DatagramPacket msgPacket = new DatagramPacket(buf, buf.length);
          clientSocket.receive(msgPacket);
          //String msg = new String(buf, 0, buf.length);
          //System.out.println("Socket received msg: " + msg);
-         return msgPacket;
+         return buf;
+
       } catch (IOException ex) {
          ex.printStackTrace();
       }
+
       // Send when an error occurred
-      return new DatagramPacket(buf, 0);
+      //REM: Pasan, please correct
+      return buf;
    }
 }

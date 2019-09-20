@@ -6,26 +6,17 @@ class Client{
 
    public static void main(String[] args)  throws UnknownHostException, InterruptedException{
 
-      MulticastReceiver mr = new MulticastReceiver();
-      PeerSender ps = new PeerSender(ms);
       Scanner in = new Scanner(System.in);  // Create a Scanner object
 
-      ps.setupAudioStream();
+      MulticastReceiver mr = new MulticastReceiver();
+
+      PeerReceiver pr = new PeerReceiver(mr);
+      pr.setupAudioStream();
 
       try{
          while(true){
-            System.out.print("\n\nEnter (1=start, 0=stop): ");
 
-            int cmd = in.nextInt();  // Read user input
-
-            if(cmd==1){
-               System.out.println("Send Start");
-               ps.sendStart();
-            }else{
-               System.out.println("Send Stop");
-               ps.sendStop();
-               Thread.sleep(50);
-            }
+            pr.play();
          }
       }catch (Exception ex) {
          ex.printStackTrace();

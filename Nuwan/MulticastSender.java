@@ -11,14 +11,14 @@ public class MulticastSender{
    private InetAddress addr;
    private DatagramSocket serverSocket;
 
-   public MulticastSender()  throws UnknownHostException{ //
+   public MulticastSender()  throws UnknownHostException{
+      // Address and the port are hardcoded for now
       INET_ADDR = "224.0.0.3";
       PORT = 20000;
-
       this.addr = InetAddress.getByName(INET_ADDR);
-      //serverSocket = new DatagramSocket();
 
       try{
+         // Create a Datagram Socket which can push data into the multicast group
          serverSocket = new DatagramSocket();
 
       } catch (IOException ex) {
@@ -26,6 +26,7 @@ public class MulticastSender{
       }
    }
 
+   // Push a message into multicast group
    public void send(String msg){
       try{
          DatagramPacket msgPacket = new DatagramPacket(msg.getBytes(), msg.getBytes().length, addr, PORT);
@@ -36,14 +37,13 @@ public class MulticastSender{
       }
    }
 
-
+   // Push the data buffer into multicast group
    public void write(byte[] buffer){
       String msg = new String(buffer);
 
       try{
          DatagramPacket msgPacket = new DatagramPacket(msg.getBytes(), msg.getBytes().length, addr, PORT);
          serverSocket.send(msgPacket);
-         //System.out.println("Server sent packet with msg: " + msg);
       }catch (IOException ex) {
          ex.printStackTrace();
       }
