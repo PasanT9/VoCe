@@ -174,7 +174,7 @@ public class Peer
 
   public static void main(String[] args) throws IOException
   {
-    ServerSocket ss = new ServerSocket(5000);
+    ServerSocket ss = new ServerSocket(50000);
     Socket s = null;
 
     try
