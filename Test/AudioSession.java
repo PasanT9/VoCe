@@ -147,9 +147,8 @@ public class AudioSession {
           client = new Client();
           clientList.put(hashId,client);
         }
+
         int userId = client.userId;
-
-
         buffer = packet.getData();
 
         /*System.out.println(userId+": "+buffer[499]);
@@ -159,47 +158,20 @@ public class AudioSession {
 
         //------------------------------------------------------------------------------------------------------
         if (buffer[499] >= 0 && buffer[499] <= 15) {
+
           int currentPacket = buffer[499];
           System.out.println("Expected("+userId+"): "+client.seq+" "+"Arrived: "+currentPacket);
-          if(currentPacket != client.seq){
+          if(currentPacket != client.seq) {
             System.out.println("Not in Sequence");
-            if(client.memBuffer[client.seq] == null){
+            if(client.memBuffer[client.seq] == null) {
               System.out.println("Not in Buffer");
               client.memBuffer[currentPacket] = Arrays.copyOf(buffer, 500);
-              int packets=0;
-              do{
-                System.out.println("Wait packets for: " + client.seq);
-
-                packet=new DatagramPacket(buffer, buffer.length);
-                peer.socket0.receive(packet);
-
-                sourceIp = packet.getAddress().getHostName();
-                sourcePort = packet.getPort();
-
-                hashId = getHashId(sourceIp,sourcePort);
-
-                if(clientList.containsKey(hashId)){
-                  client = clientList.get(hashId);
-                }
-                else{
-                  client = new Client();
-                  clientList.put(hashId,client);
-                }
-                userId = client.userId;
-
-                buffer = packet.getData();
-
-                ++packets;
-                if(buffer[499] >= 0 && buffer[499] <= 15){
-                  currentPacket = buffer[499];
-                  client.memBuffer[currentPacket] = Arrays.copyOf(buffer, 500);
-                  System.out.println("Into buffer: " + currentPacket);
-                }
-              }while(currentPacket != client.seq && packets < 5);
-              if(packets == 5){
-                System.out.println("Packet Drop");
-                ++client.seq;
-                client.seq %= 16;
+              ++client.packetLoss;
+              if(client.packetLoss > 3){
+                client.packetLoss = 0;
+                continue;
+              }
+              else{
                 continue;
               }
             }
@@ -219,9 +191,10 @@ public class AudioSession {
           //--------------------------------------------------------------------------------------------------------
           ++client.seq;
           client.seq %= 16;
-          /*if(packetCount == 0){
-            initializeMemBuffer();
-          }*/
+          if(client.seq == 0){
+            client.memBuffer = client.initializeMemBuffer();
+            System.out.println("User: "+userId+" clearing buffer");
+          }
         }
       }
       byteArrayOutputStream.close();
