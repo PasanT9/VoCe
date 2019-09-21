@@ -28,7 +28,7 @@ public class MulticastSocketServer {
                 serverSocket.send(msgPacket);
 
                 System.out.println("Server sent packet with msg: " + msg);
-                Thread.sleep(1000);
+                Thread.sleep(10);
             }
         } catch (IOException ex) {
             ex.printStackTrace();
