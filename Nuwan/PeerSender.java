@@ -75,9 +75,10 @@ public class PeerSender extends Peer implements Runnable{
          while (enableBroadcast) {
             targetDataLine.read(tempBuffer, 0, tempBuffer.length);  //capture sound into tempBuffer
             seq = seq%16;
-            tempBuffer[499] = (byte)seq++;
-            //System.out.println(tempBuffer[499]);
+            tempBuffer[100] = (byte)seq++;
+            System.out.println(tempBuffer[100]);
             ms.write(tempBuffer);
+
          }
       } catch (Exception e) {
          System.out.println(e);

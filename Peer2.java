@@ -1,6 +1,7 @@
 import java.io.*;
+import java.text.*;
+import java.util.*;
 import java.net.*;
-import java.util.Scanner;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -19,6 +20,7 @@ import javax.sound.sampled.TargetDataLine;
 public class Peer2
 {
 
+
   boolean stopCapture = false;
   ByteArrayOutputStream byteArrayOutputStream;
   AudioFormat audioFormat;
@@ -26,6 +28,7 @@ public class Peer2
   AudioInputStream audioInputStream;
   SourceDataLine sourceDataLine;
   byte tempBuffer[] = new byte[500];
+  byte playBuffer[] = new byte[500];
 
   final DataInputStream dis;
   final DataOutputStream dos;
@@ -92,15 +95,18 @@ public class Peer2
         byteArrayOutputStream = new ByteArrayOutputStream();
         stopCapture = false;
         try {
-            int readCount;
+            int seq = 0;
+            //Record non-stop
             while (!stopCapture) {
-                readCount = targetDataLine.read(tempBuffer, 0, tempBuffer.length);  //capture sound into tempBuffer
-                System.out.println(tempBuffer);
+
+                //Read from mic and store in temp buffer
+                targetDataLine.read(tempBuffer, 0, tempBuffer.length);  //capture sound into tempBuffer
+                seq = seq%16;
+                tempBuffer[499] = (byte)seq++;
+                System.out.println(tempBuffer[499]);
+
+                //Send whats in buffer to the server using sockets
                 dos.write(tempBuffer);
-                /*if (readCount > 0) {
-                    byteArrayOutputStream.write(tempBuffer, 0, readCount);
-                    sourceDataLine.write(tempBuffer, 0, 500);   //playing audio available in tempBuffer
-                }*/
             }
             byteArrayOutputStream.close();
         } catch (IOException e) {
@@ -119,7 +125,7 @@ public class Peer2
             InetAddress ip = InetAddress.getByName("localhost");
 
             // establish the connection with server port 5056
-            Socket s = new Socket(ip, 5056);
+            Socket s = new Socket(ip, 5000);
 
             // obtaining input and out streams
             DataInputStream dis = new DataInputStream(s.getInputStream());

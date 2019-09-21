@@ -43,9 +43,10 @@ public class PeerReceiver extends Peer implements Runnable{
       try {
          int readCount;
          while (!stopCapture) {
-
+/*
             //DatagramPacket msgPacket = mr.receive();
             tempBuffer = mr.receive();
+            System.out.println(tempBuffer[499]);
             readCount = tempBuffer.length;
 
             if (readCount > 0 && (tempBuffer[499] >= 0 && tempBuffer[499] <= 15)) {
@@ -93,7 +94,11 @@ public class PeerReceiver extends Peer implements Runnable{
                sourceDataLine.write(tempBuffer, 0, 500);   //playing audio available in tempBuffer
                ++packetCount;
                packetCount %= 16;
-            }
+            }*/
+            tempBuffer = mr.receive();
+            byteArrayOutputStream.write(tempBuffer, 0, 500);
+            System.out.println("Playing: "+tempBuffer[100]);
+            sourceDataLine.write(tempBuffer, 0, 500);   //playing audio available in tempBuffer
          }
          byteArrayOutputStream.close();
 
