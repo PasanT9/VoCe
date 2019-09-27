@@ -22,5 +22,6 @@ class Client{
          ex.printStackTrace();
       }
 
+      in.close();
    }
 }
