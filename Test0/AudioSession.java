@@ -25,7 +25,7 @@ public class AudioSession {
   TargetDataLine targetDataLine;
   AudioInputStream audioInputStream;
   SourceDataLine sourceDataLine;
-  byte tempBuffer[] = new byte[200];
+  byte tempBuffer[] = new byte[500];
   Session peer;
 
 
@@ -92,8 +92,8 @@ public class AudioSession {
         //Read from mic and store in temp buffer
         targetDataLine.read(tempBuffer, 0, tempBuffer.length);  //capture sound into tempBuffer
         seq = seq%16;
-        tempBuffer[199] = (byte)seq++;
-        System.out.println(tempBuffer[199]);
+        tempBuffer[499] = (byte)seq++;
+        System.out.println(tempBuffer[499]);
 
         //Send whats in buffer to the server using sockets
         DatagramPacket packet = new DatagramPacket(tempBuffer, tempBuffer.length, peer.ip, peer.port);
@@ -125,7 +125,7 @@ public class AudioSession {
     HashMap<Integer, Client> clientList = new HashMap<Integer, Client>();
 
     try {
-      byte[] buffer=new byte[200];
+      byte[] buffer=new byte[500];
 
       //Play non-stop
       while (!stopCapture) {
@@ -150,51 +150,20 @@ public class AudioSession {
         int userId = client.userId;
         buffer = packet.getData();
 
-        /*System.out.println(userId+": "+buffer[499]);
-        sourceDataLine.write(buffer, 0, 200);   //playing audio available in tempBuffer*/
-
         //Packet re-arranging algorithm
-
+        ++client.packetCount;
         //------------------------------------------------------------------------------------------------------
-        if (buffer[199] >= 0 && buffer[199] <= 15) {
-
-          int currentPacket = buffer[199];
-          System.out.println("Expected("+userId+"): "+client.seq+" "+"Arrived: "+currentPacket);
-          if(currentPacket != client.seq) {
-            System.out.println("Not in Sequence");
-            if(client.memBuffer[client.seq] == null) {
-              System.out.println("Not in Buffer");
-              client.memBuffer[currentPacket] = Arrays.copyOf(buffer, 200);
-              ++client.packetLoss;
-              if(client.packetLoss > 3){
-                client.packetLoss = 0;
-                continue;
-              }
-              else{
-                continue;
-              }
-            }
-            else{
-              System.out.println("Exist in Buffer: "+client.seq);
-              buffer = Arrays.copyOf(client.memBuffer[client.seq], 200);
-              client.memBuffer[client.seq] = null;
-              client.memBuffer[currentPacket] = Arrays.copyOf(buffer, 200);
-            }
+        if (buffer[499] >= 0 && buffer[499] <= 15) {
+          
+          int currentPacket = buffer[499];
+          client.pBuffer.addToBuffer(currentPacket, buffer);
+          if(client.packetCount > 15){
+            client.pBuffer.playBuffer(this);
+            client.packetCount = 0;
           }
           //------------------------------------------------------------------------------------------------------
 
-          //Play data in temp buffer
-          byteArrayOutputStream.write(buffer, 0, 200);
-          System.out.println("Playing: "+buffer[199]);
-          sourceDataLine.write(buffer, 0, 200);   //playing audio available in tempBuffer
 
-          //--------------------------------------------------------------------------------------------------------
-          ++client.seq;
-          client.seq %= 16;
-          if(client.seq == 0){
-            client.memBuffer = client.initializeMemBuffer();
-            System.out.println("User: "+userId+" clearing buffer");
-          }
         }
       }
       byteArrayOutputStream.close();
