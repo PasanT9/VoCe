@@ -17,7 +17,7 @@ import java.net.DatagramSocket;
 import java.util.*;
 
 
-public class AudioSession {
+public class AudioSession implements Runnable {
 
   boolean stopCapture = false;
   ByteArrayOutputStream byteArrayOutputStream;
@@ -25,12 +25,17 @@ public class AudioSession {
   TargetDataLine targetDataLine;
   AudioInputStream audioInputStream;
   SourceDataLine sourceDataLine;
-  byte tempBuffer[] = new byte[500];
+  byte tempBuffer[] = new byte[200];
   Session peer;
+  int threadCount;
 
 
   public AudioSession(Session peer) {
     this.peer = peer;
+  }
+
+  public AudioSession(int i){
+    this.threadCount = i;
   }
 
   private AudioFormat getAudioFormat() {
@@ -40,6 +45,10 @@ public class AudioSession {
     boolean signed = true;
     boolean bigEndian = true;
     return new AudioFormat(sampleRate, sampleSizeInBits, channels, signed, bigEndian);
+  }
+
+  public void run(){
+
   }
 
   public void captureAudio() {
@@ -92,8 +101,8 @@ public class AudioSession {
         //Read from mic and store in temp buffer
         targetDataLine.read(tempBuffer, 0, tempBuffer.length);  //capture sound into tempBuffer
         seq = seq%16;
-        tempBuffer[499] = (byte)seq++;
-        System.out.println(tempBuffer[499]);
+        tempBuffer[199] = (byte)seq++;
+        System.out.println(tempBuffer[199]);
 
         //Send whats in buffer to the server using sockets
         DatagramPacket packet = new DatagramPacket(tempBuffer, tempBuffer.length, peer.ip, peer.port);
@@ -120,12 +129,13 @@ public class AudioSession {
   }
 
   public void play() {
+
     byteArrayOutputStream = new ByteArrayOutputStream();
     stopCapture = false;
     HashMap<Integer, Client> clientList = new HashMap<Integer, Client>();
 
     try {
-      byte[] buffer=new byte[500];
+      byte[] buffer=new byte[200];
 
       //Play non-stop
       while (!stopCapture) {
@@ -153,11 +163,12 @@ public class AudioSession {
         //Packet re-arranging algorithm
         ++client.packetCount;
         //------------------------------------------------------------------------------------------------------
-        if (buffer[499] >= 0 && buffer[499] <= 15) {
-          
-          int currentPacket = buffer[499];
+        if (buffer[199] >= 0 && buffer[199] <= 15) {
+
+          int currentPacket = buffer[199];
           client.pBuffer.addToBuffer(currentPacket, buffer);
           if(client.packetCount > 15){
+            System.out.println("user: " +userId);
             client.pBuffer.playBuffer(this);
             client.packetCount = 0;
           }

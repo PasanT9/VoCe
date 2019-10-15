@@ -5,7 +5,7 @@ public class PacketOrder{
   byte[][] buffer;
 
   public byte[][] initializeMemBuffer(){
-    byte[][] buffer = new byte[16][500];
+    byte[][] buffer = new byte[16][200];
     for(int i=0;i<16;++i)
     {
       buffer[i] = null;
@@ -18,7 +18,7 @@ public class PacketOrder{
   }
 
   public void addToBuffer(int packetCount, byte[] data){
-    buffer[packetCount] = Arrays.copyOf(data, 500);
+    buffer[packetCount] = Arrays.copyOf(data, 200);
   }
 
   public void playBuffer(AudioSession audio){
@@ -28,9 +28,9 @@ public class PacketOrder{
       byte[] tempBuffer = buffer[i];
       if(tempBuffer != null){
         //Play data in temp buffer
-        audio.byteArrayOutputStream.write(tempBuffer, 0, 500);
-        System.out.println("Playing: "+tempBuffer[499]);
-        audio.sourceDataLine.write(tempBuffer, 0, 500);   //playing audio available in tempBuffer
+        audio.byteArrayOutputStream.write(tempBuffer, 0, 200);
+        System.out.println("Playing: "+tempBuffer[199]);
+        audio.sourceDataLine.write(tempBuffer, 0, 200);   //playing audio available in tempBuffer
       }
       else{
         ++packetLoss;

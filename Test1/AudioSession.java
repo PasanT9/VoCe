@@ -13,12 +13,11 @@ import javax.sound.sampled.TargetDataLine;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 
 import java.util.*;
 
 
-public class AudioSession implements Runnable{
+public class AudioSession {
 
   boolean stopCapture = false;
   ByteArrayOutputStream byteArrayOutputStream;
@@ -27,35 +26,12 @@ public class AudioSession implements Runnable{
   AudioInputStream audioInputStream;
   SourceDataLine sourceDataLine;
   byte tempBuffer[] = new byte[200];
-  byte memBuffer[][] = new byte[16][200];
   Session peer;
   static boolean sFlag = false;
-  static byte userId;
-  static boolean fFlag = false;
 
 
   public AudioSession(Session peer) {
     this.peer = peer;
-  }
-  public AudioSession(){
-
-  }
-  public void run(){
-        System.out.println("Here");
-    Scanner read= new Scanner(System.in);
-
-    while(true){
-      System.out.print("Wish to Speak: ");
-      String input = read.nextLine();
-      if(input.equals("YES")){
-        fFlag = true;
-      }
-      else if(input.equals("NO")){
-        sFlag = false;
-        fFlag = false;
-      }
-    }
-
   }
 
   private AudioFormat getAudioFormat() {
@@ -107,14 +83,10 @@ public class AudioSession implements Runnable{
 
   }
   public void capture() {
-    getHashId();
-    System.out.println("user: "+ userId);
     byteArrayOutputStream = new ByteArrayOutputStream();
     stopCapture = false;
     try {
       int seq = 0;
-      Thread i = new Thread(new AudioSession());
-      i.start();
       //Record non-stop
       while (!stopCapture) {
 
@@ -122,15 +94,11 @@ public class AudioSession implements Runnable{
         targetDataLine.read(tempBuffer, 0, tempBuffer.length);  //capture sound into tempBuffer
         seq = seq%16;
         tempBuffer[199] = (byte)seq++;
-        tempBuffer[198] = userId;
-        DatagramPacket packet = new DatagramPacket(tempBuffer, tempBuffer.length, peer.ip, peer.port);
-        if(fFlag){
-          peer.socket.send(packet);
-          sFlag = true;
-          fFlag = false;
-        }
+        tempBuffer[198] = (byte)getHashId();
+        System.out.println(tempBuffer[199]);
 
         //Send whats in buffer to the server using sockets
+        DatagramPacket packet = new DatagramPacket(tempBuffer, tempBuffer.length, peer.ip, peer.port);
         if(sFlag){
           peer.socket.send(packet);
         }
@@ -142,33 +110,17 @@ public class AudioSession implements Runnable{
     }
   }
 
-  private void getHashId(){
-    String ip="";
-    try{
-      ip = InetAddress.getLocalHost().toString();
-    }
-    catch(Exception ex){
-      ex.printStackTrace();
-    }
-    int port = (int)(Math.random()*500);
+  private int getHashId(){
     int id = 1;
     for(int i=0;i<ip.length();++i)
     {
-      id *= ((ip.charAt(i)+100)%500);
+      id *= (ip.charAt(i)+100);
     }
     id *= port;
     if(id<0){
       id *= (-1);
     }
-    userId = (byte)(id%500);
-  }
-  public byte[][] initializeMemBuffer(){
-    byte[][] buffer = new byte[16][500];
-    for(int i=0;i<16;++i)
-    {
-      buffer[i] = null;
-    }
-    return buffer;
+    return id%500;
   }
 
   public void play() {
@@ -180,7 +132,6 @@ public class AudioSession implements Runnable{
       byte[] buffer=new byte[200];
       int seqNum= 0;
       int packetLoss = 0;
-      memBuffer = initializeMemBuffer();
 
       //Play non-stop
       while (!stopCapture) {
@@ -213,27 +164,18 @@ public class AudioSession implements Runnable{
         //------------------------------------------------------------------------------------------------------
         if (buffer[199] >= 0 && buffer[199] <= 15) {
 
+
+
           int currentPacket = buffer[199];
-          int speaker = buffer[198];
-          //System.out.println(speaker+" "+userId);
-          if(speaker != userId){
-            //System.out.println("Another Speaking");
-            sFlag = false;
-          }
-          else if(speaker == userId){
-            System.out.println("Speaking");
-            sFlag = true;
-            continue;
-          }
-          //System.out.println("Expected: "+seqNum+" "+"Arrived: "+currentPacket);
+          System.out.println("Expected: "+seqNum+" "+"Arrived: "+currentPacket);
           if(currentPacket != seqNum) {
-            //System.out.println("Not in Sequence");
-            if(memBuffer[seqNum] == null) {
-              //System.out.println("Not in Buffer");
-              memBuffer[currentPacket] = Arrays.copyOf(buffer, 200);
-              ++packetLoss;
-              if(packetLoss > 3){
-                packetLoss = 0;
+            System.out.println("Not in Sequence");
+            if(client.memBuffer[seqNum] == null) {
+              System.out.println("Not in Buffer");
+              client.memBuffer[currentPacket] = Arrays.copyOf(buffer, 200);
+              ++client.packetLoss;
+              if(client.packetLoss > 3){
+                client.packetLoss = 0;
                 continue;
               }
               else{
@@ -241,24 +183,25 @@ public class AudioSession implements Runnable{
               }
             }
             else{
-              //System.out.println("Exist in Buffer: "+seqNum);
-              buffer = Arrays.copyOf(memBuffer[seqNum], 200);
-              memBuffer[seqNum] = null;
-              memBuffer[currentPacket] = Arrays.copyOf(buffer, 200);
+              System.out.println("Exist in Buffer: "+client.seq);
+              buffer = Arrays.copyOf(client.memBuffer[client.seq], 200);
+              client.memBuffer[client.seq] = null;
+              client.memBuffer[currentPacket] = Arrays.copyOf(buffer, 200);
             }
           }
           //------------------------------------------------------------------------------------------------------
 
           //Play data in temp buffer
           byteArrayOutputStream.write(buffer, 0, 200);
-          //System.out.println("Playing("+speaker+"): "+buffer[199]);
+          System.out.println("Playing: "+buffer[199]);
           sourceDataLine.write(buffer, 0, 200);   //playing audio available in tempBuffer
 
           //--------------------------------------------------------------------------------------------------------
-          ++seqNum;
-          seqNum %= 16;
-          if(seqNum == 0){
-            memBuffer = initializeMemBuffer();
+          ++client.seq;
+          client.seq %= 16;
+          if(client.seq == 0){
+            client.memBuffer = client.initializeMemBuffer();
+            System.out.println("User: "+userId+" clearing buffer");
           }
         }
       }

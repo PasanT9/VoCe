@@ -9,7 +9,7 @@ public class UDPMulticastServer implements Runnable{
 public void run() {
   try{
     DatagramSocket socket = new DatagramSocket();
-    InetAddress group = InetAddress.getByName("230.0.0.0");
+    InetAddress group = InetAddress.getByName("233.0.0.1");
     int port = 4321;
 
     Session peer = new Session(socket, group, port);
