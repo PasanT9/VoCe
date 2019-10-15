@@ -4,21 +4,41 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.*;
 
-public class UDPMulticastServer {
+import java.io.IOException;
+import java.net.UnknownHostException;
 
+public class UDPMulticastServer implements Runnable{
+   private Session peer;
+   private AudioSession audio;
+   private DatagramSocket socket;
 
-  public static void main(String[] args) throws IOException {
+   public UDPMulticastServer()  throws UnknownHostException, InterruptedException{
+      // throws IOException
 
-    DatagramSocket socket = new DatagramSocket();
-    InetAddress group = InetAddress.getByName("230.0.0.0");
-    int port = 4321;
+      try{
+         // Create a Datagram Socket which can push data into the multicast group
+         socket = new DatagramSocket();
 
-    Session peer = new Session(socket, group, port);
-    AudioSession audio = new AudioSession(peer);
+      } catch (IOException ex) {
+         ex.printStackTrace();
+      }
 
-    audio.captureAudio();
-    audio.capture();
+      InetAddress group = InetAddress.getByName("230.0.0.0");
+      int port = 4321;
 
-    socket.close();
-  }
+      peer = new Session(socket, group, port);
+      audio = new AudioSession(peer);
+
+      /*audio.captureAudio();
+      audio.capture();
+      socket.close();*/
+   }
+
+   @Override
+   public void run(){
+
+      audio.captureAudio();
+      audio.capture();
+      socket.close();
+   }
 }

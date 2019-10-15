@@ -4,32 +4,42 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.util.*;
 
+import java.net.UnknownHostException;
+
 public class UDPMulticastClient implements Runnable {
 
-  public static void main(String[] args) {
-    Thread t=new Thread(new UDPMulticastClient());
-    t.start();
-  }
+   private MulticastSocket socket;
+   private Session peer;
+   AudioSession audio;
+   InetAddress group;
 
-  @Override
-  public void run(){
+   public UDPMulticastClient()  throws UnknownHostException, InterruptedException{
 
-    try {
-      MulticastSocket socket=new MulticastSocket(4321);
-      InetAddress group = InetAddress.getByName("230.0.0.0");
+      try{
+         socket=new MulticastSocket(4321);
+         group = InetAddress.getByName("230.0.0.0");
+         peer = new Session(socket, group);
+         audio = new AudioSession(peer);
 
-      Session peer = new Session(socket, group);
-      AudioSession audio = new AudioSession(peer);
-      socket.joinGroup(group);
+      } catch (IOException ex) {
+         ex.printStackTrace();
+      }
 
-      audio.captureAudio();
-      audio.play();
+   }
 
-      socket.leaveGroup(group);
-      socket.close();
+   @Override
+   public void run(){
+      try {
+         socket.joinGroup(group);
 
-    }catch(IOException ex){
-      ex.printStackTrace();
-    }
-  }
+         audio.captureAudio();
+         audio.play();
+
+         socket.leaveGroup(group);
+         socket.close();
+
+      }catch(IOException ex){
+         ex.printStackTrace();
+      }
+   }
 }
