@@ -26,8 +26,8 @@ public class AudioSession implements Runnable{
   TargetDataLine targetDataLine;
   AudioInputStream audioInputStream;
   SourceDataLine sourceDataLine;
-  byte tempBuffer[] = new byte[200];
-  byte memBuffer[][] = new byte[16][200];
+  byte tempBuffer[] = new byte[500];
+  byte memBuffer[][] = new byte[16][500];
   Session peer;
   static boolean sFlag = false;
   static byte userId;
@@ -41,18 +41,13 @@ public class AudioSession implements Runnable{
 
   }
   public void run(){
-        System.out.println("Here");
-    Scanner read= new Scanner(System.in);
+  Scanner read= new Scanner(System.in);
 
     while(true){
       System.out.print("Wish to Speak: ");
       String input = read.nextLine();
       if(input.equals("YES")){
         fFlag = true;
-      }
-      else if(input.equals("NO")){
-        sFlag = false;
-        fFlag = false;
       }
     }
 
@@ -121,15 +116,16 @@ public class AudioSession implements Runnable{
         //Read from mic and store in temp buffer
         targetDataLine.read(tempBuffer, 0, tempBuffer.length);  //capture sound into tempBuffer
         seq = seq%16;
-        tempBuffer[199] = (byte)seq++;
-        tempBuffer[198] = userId;
-        DatagramPacket packet = new DatagramPacket(tempBuffer, tempBuffer.length, peer.ip, peer.port);
+
+
         if(fFlag){
-          peer.socket.send(packet);
           sFlag = true;
           fFlag = false;
+          seq = 0;
         }
-
+        tempBuffer[499] = (byte)seq++;
+        tempBuffer[498] = userId;
+        DatagramPacket packet = new DatagramPacket(tempBuffer, tempBuffer.length, peer.ip, peer.port);
         //Send whats in buffer to the server using sockets
         if(sFlag){
           peer.socket.send(packet);
@@ -162,6 +158,7 @@ public class AudioSession implements Runnable{
     }
     userId = (byte)(id%500);
   }
+
   public byte[][] initializeMemBuffer(){
     byte[][] buffer = new byte[16][500];
     for(int i=0;i<16;++i)
@@ -174,51 +171,40 @@ public class AudioSession implements Runnable{
   public void play() {
     byteArrayOutputStream = new ByteArrayOutputStream();
     stopCapture = false;
-    HashMap<Integer, Client> clientList = new HashMap<Integer, Client>();
 
     try {
-      byte[] buffer=new byte[200];
+      byte[] buffer=new byte[500];
       int seqNum= 0;
       int packetLoss = 0;
       memBuffer = initializeMemBuffer();
-
+      int prevUserId = 0;
       //Play non-stop
       while (!stopCapture) {
 
         DatagramPacket packet=new DatagramPacket(buffer, buffer.length);
 
         peer.socket0.receive(packet);
-        /*String sourceIp = packet.getAddress().getHostName();
-        int sourcePort = packet.getPort();
-
-        int hashId = getHashId(sourceIp,sourcePort);
-        Client client;
-
-        if(clientList.containsKey(hashId)){
-          client = clientList.get(hashId);
-        }
-        else{
-          client = new Client();
-          clientList.put(hashId,client);
-        }
-
-        int userId = client.userId;*/
         buffer = packet.getData();
 
-        /*System.out.println(userId+": "+buffer[499]);
-        sourceDataLine.write(buffer, 0, 200);   //playing audio available in tempBuffer*/
-
-        //Packet re-arranging algorithm
-
         //------------------------------------------------------------------------------------------------------
-        if (buffer[199] >= 0 && buffer[199] <= 15) {
+        if (buffer[499] >= 0 && buffer[499] <= 15) {
 
-          int currentPacket = buffer[199];
-          int speaker = buffer[198];
+          int currentPacket = buffer[499];
+          int speaker = buffer[498];
           //System.out.println(speaker+" "+userId);
           if(speaker != userId){
             //System.out.println("Another Speaking");
+            if(prevUserId == 0){
+              //System.out.println("First Speaker");
+              prevUserId = speaker;
+            }
+            else if(prevUserId != speaker){
+              seqNum = 0;
+              prevUserId = speaker;
+              //System.out.println("Changed Speaker");
+            }
             sFlag = false;
+
           }
           else if(speaker == userId){
             System.out.println("Speaking");
@@ -230,7 +216,7 @@ public class AudioSession implements Runnable{
             //System.out.println("Not in Sequence");
             if(memBuffer[seqNum] == null) {
               //System.out.println("Not in Buffer");
-              memBuffer[currentPacket] = Arrays.copyOf(buffer, 200);
+              memBuffer[currentPacket] = Arrays.copyOf(buffer, 500);
               ++packetLoss;
               if(packetLoss > 3){
                 packetLoss = 0;
@@ -241,18 +227,18 @@ public class AudioSession implements Runnable{
               }
             }
             else{
-              //System.out.println("Exist in Buffer: "+seqNum);
-              buffer = Arrays.copyOf(memBuffer[seqNum], 200);
+            //  System.out.println("Exist in Buffer: "+seqNum);
+              buffer = Arrays.copyOf(memBuffer[seqNum], 500);
               memBuffer[seqNum] = null;
-              memBuffer[currentPacket] = Arrays.copyOf(buffer, 200);
+              memBuffer[currentPacket] = Arrays.copyOf(buffer, 500);
             }
           }
           //------------------------------------------------------------------------------------------------------
 
           //Play data in temp buffer
-          byteArrayOutputStream.write(buffer, 0, 200);
-          //System.out.println("Playing("+speaker+"): "+buffer[199]);
-          sourceDataLine.write(buffer, 0, 200);   //playing audio available in tempBuffer
+          byteArrayOutputStream.write(buffer, 0, 500);
+          //System.out.println("Playing("+speaker+"): "+buffer[499]);
+          sourceDataLine.write(buffer, 0, 500);   //playing audio available in tempBuffer
 
           //--------------------------------------------------------------------------------------------------------
           ++seqNum;
