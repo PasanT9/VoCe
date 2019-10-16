@@ -26,7 +26,7 @@ public class AudioSession implements Runnable{
   TargetDataLine targetDataLine;
   AudioInputStream audioInputStream;
   SourceDataLine sourceDataLine;
-  byte tempBuffer[] = new byte[200];
+  byte tempBuffer[] = new byte[202];
   Session peer;
   static boolean sFlag = false;
   static byte userId;
@@ -113,7 +113,7 @@ public class AudioSession implements Runnable{
       while (!stopCapture) {
 
         //Read from mic and store in temp buffer
-        targetDataLine.read(tempBuffer, 0, tempBuffer.length);  //capture sound into tempBuffer
+        targetDataLine.read(tempBuffer, 0, tempBuffer.length-2);  //capture sound into tempBuffer
         seq = seq%16;
 
 
@@ -122,8 +122,8 @@ public class AudioSession implements Runnable{
           fFlag = false;
           seq = 0;
         }
-        tempBuffer[199] = (byte)seq++;
-        tempBuffer[198] = userId;
+        tempBuffer[201] = (byte)seq++;
+        tempBuffer[200] = userId;
         DatagramPacket packet = new DatagramPacket(tempBuffer, tempBuffer.length, peer.ip, peer.port);
         //Send whats in buffer to the server using sockets
         if(sFlag){
@@ -170,17 +170,17 @@ public class AudioSession implements Runnable{
 
       //Play non-stop
       while (!stopCapture) {
-        byte[] buffer=new byte[200];
+        byte[] buffer=new byte[202];
         DatagramPacket packet=new DatagramPacket(buffer, buffer.length);
 
         peer.socket0.receive(packet);
         buffer = packet.getData();
 
         //------------------------------------------------------------------------------------------------------
-        if (buffer[199] >= 0 && buffer[199] <= 15) {
+        if (buffer[201] >= 0 && buffer[201] <= 15) {
 
-          int currentPacket = buffer[199];
-          int speaker = buffer[198];
+          int currentPacket = buffer[201];
+          int speaker = buffer[200];
           //System.out.println(speaker+" "+userId);
           if(speaker != userId){
             //System.out.println("Another Speaking");
@@ -205,9 +205,9 @@ public class AudioSession implements Runnable{
           if(currentPacket != seqNum) {
           //  System.out.println("Not in Sequence");
             PacketOrder packetData = new PacketOrder(seqNum,currentPacket, buffer);
-            buffer = Arrays.copyOf(packetData.getOrder(),200);
-            if(buffer[199]==-1){
-              seqNum = buffer[198];
+            buffer = Arrays.copyOf(packetData.getOrder(),202);
+            if(buffer[201]==-1){
+              seqNum = buffer[200];
               continue;
             }
           }

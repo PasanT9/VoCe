@@ -11,7 +11,7 @@ public class UDPMulticastClient implements Runnable {
 
     try {
       MulticastSocket socket=new MulticastSocket(4321);
-      InetAddress group = InetAddress.getByName("230.0.0.3");
+      InetAddress group = InetAddress.getByName("233.0.0.1");
 
       Session peer = new Session(socket, group);
       AudioSession audio = new AudioSession(peer);

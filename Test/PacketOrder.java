@@ -16,7 +16,7 @@ public class PacketOrder{
     public byte[] getOrder(){
       if(memBuffer[this.seqNum] == null) {
         //System.out.println("Not in Buffer");
-        memBuffer[this.currentPacket] = Arrays.copyOf(this.buffer, 200);
+        memBuffer[this.currentPacket] = Arrays.copyOf(this.buffer, 202);
         //System.out.println("Packet Loss: "+packetLoss);
         ++packetLoss;
         if(packetLoss > 3){
@@ -25,12 +25,12 @@ public class PacketOrder{
           this.seqNum %= 16;
           packetLoss = 0;
         }
-        this.buffer[199] = -1;
-        this.buffer[198] = (byte)this.seqNum;
+        this.buffer[201] = -1;
+        this.buffer[200] = (byte)this.seqNum;
       }
       else{
-        memBuffer[this.currentPacket] = Arrays.copyOf(this.buffer, 200);
-        this.buffer = Arrays.copyOf(memBuffer[this.seqNum], 200);
+        memBuffer[this.currentPacket] = Arrays.copyOf(this.buffer, 202);
+        this.buffer = Arrays.copyOf(memBuffer[this.seqNum], 202);
         //System.out.println("Exist in Buffer: "+this.buffer[199]);
         memBuffer[this.seqNum] = null;
       }
@@ -39,7 +39,7 @@ public class PacketOrder{
 
 
     public static byte[][] initializeMemBuffer(){
-      byte[][] buffer = new byte[16][200];
+      byte[][] buffer = new byte[16][202];
       for(int i=0;i<16;++i)
       {
         buffer[i] = null;
