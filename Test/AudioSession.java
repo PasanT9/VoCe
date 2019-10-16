@@ -26,7 +26,7 @@ public class AudioSession implements Runnable{
   TargetDataLine targetDataLine;
   AudioInputStream audioInputStream;
   SourceDataLine sourceDataLine;
-  byte tempBuffer[] = new byte[500];
+  byte tempBuffer[] = new byte[200];
   Session peer;
   static boolean sFlag = false;
   static byte userId;
@@ -122,8 +122,8 @@ public class AudioSession implements Runnable{
           fFlag = false;
           seq = 0;
         }
-        tempBuffer[499] = (byte)seq++;
-        tempBuffer[498] = userId;
+        tempBuffer[199] = (byte)seq++;
+        tempBuffer[198] = userId;
         DatagramPacket packet = new DatagramPacket(tempBuffer, tempBuffer.length, peer.ip, peer.port);
         //Send whats in buffer to the server using sockets
         if(sFlag){
@@ -164,23 +164,23 @@ public class AudioSession implements Runnable{
     stopCapture = false;
 
     try {
-      byte[] buffer=new byte[500];
       int seqNum= 0;
       int prevUserId = 0;
+      PacketOrder.packetLoss = 0;
 
       //Play non-stop
       while (!stopCapture) {
-
+        byte[] buffer=new byte[200];
         DatagramPacket packet=new DatagramPacket(buffer, buffer.length);
 
         peer.socket0.receive(packet);
         buffer = packet.getData();
 
         //------------------------------------------------------------------------------------------------------
-        if (buffer[499] >= 0 && buffer[499] <= 15) {
+        if (buffer[199] >= 0 && buffer[199] <= 15) {
 
-          int currentPacket = buffer[499];
-          int speaker = buffer[498];
+          int currentPacket = buffer[199];
+          int speaker = buffer[198];
           //System.out.println(speaker+" "+userId);
           if(speaker != userId){
             //System.out.println("Another Speaking");
@@ -203,24 +203,27 @@ public class AudioSession implements Runnable{
           }
           System.out.println("Expected: "+seqNum+" "+"Arrived: "+currentPacket);
           if(currentPacket != seqNum) {
-            PacketOrder packetData = new PacketOrder(seqNum,currentPacket, buffer);
-            buffer = packetData.getOrder();
             System.out.println("Not in Sequence");
-          }
-          if(buffer==null){
-            continue;
+            PacketOrder packetData = new PacketOrder(seqNum,currentPacket, buffer);
+            buffer = Arrays.copyOf(packetData.getOrder(),200);
+            if(buffer[199]==-1){
+              seqNum = buffer[198];
+              continue;
+            }
           }
           //------------------------------------------------------------------------------------------------------
 
           //Play data in temp buffer
-          byteArrayOutputStream.write(buffer, 0, 500);
-          System.out.println("Playing("+speaker+"): "+buffer[499]);
-          sourceDataLine.write(buffer, 0, 500);   //playing audio available in tempBuffer
+          PacketOrder.packetLoss = 0;
+          byteArrayOutputStream.write(buffer, 0, 200);
+          System.out.println("Playing("+speaker+"): "+buffer[199]);
+          sourceDataLine.write(buffer, 0, 200);   //playing audio available in tempBuffer
 
           //--------------------------------------------------------------------------------------------------------
           ++seqNum;
           seqNum %= 16;
           if(seqNum == 0){
+            System.out.println("Flushing Buffer");
             PacketOrder.memBufferToNull();
           }
         }

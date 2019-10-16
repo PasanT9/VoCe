@@ -3,7 +3,7 @@ import java.util.*;
 public class PacketOrder{
 
     static byte memBuffer[][] = initializeMemBuffer();
-    static int packetLoss = 0;
+    static int packetLoss;
     int seqNum;
     int currentPacket;
     byte[] buffer;
@@ -16,25 +16,30 @@ public class PacketOrder{
     public byte[] getOrder(){
       if(memBuffer[this.seqNum] == null) {
         System.out.println("Not in Buffer");
-        memBuffer[this.currentPacket] = Arrays.copyOf(this.buffer, 500);
+        memBuffer[this.currentPacket] = Arrays.copyOf(this.buffer, 200);
+        System.out.println("Packet Loss: "+packetLoss);
         ++packetLoss;
         if(packetLoss > 3){
+          System.out.println("Drop packet");
+          ++this.seqNum;
+          this.seqNum %= 16;
           packetLoss = 0;
         }
-        this.buffer = null;
+        this.buffer[199] = -1;
+        this.buffer[198] = (byte)this.seqNum;
       }
       else{
-        System.out.println("Exist in Buffer: "+seqNum);
-        this.buffer = Arrays.copyOf(memBuffer[this.seqNum], 500);
+        memBuffer[this.currentPacket] = Arrays.copyOf(this.buffer, 200);
+        this.buffer = Arrays.copyOf(memBuffer[this.seqNum], 200);
+        System.out.println("Exist in Buffer: "+this.buffer[199]);
         memBuffer[this.seqNum] = null;
-        memBuffer[this.currentPacket] = Arrays.copyOf(this.buffer, 500);
       }
       return this.buffer;
     }
 
 
     public static byte[][] initializeMemBuffer(){
-      byte[][] buffer = new byte[16][500];
+      byte[][] buffer = new byte[16][200];
       for(int i=0;i<16;++i)
       {
         buffer[i] = null;
