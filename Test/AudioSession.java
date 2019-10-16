@@ -27,7 +27,6 @@ public class AudioSession implements Runnable{
   AudioInputStream audioInputStream;
   SourceDataLine sourceDataLine;
   byte tempBuffer[] = new byte[500];
-  byte memBuffer[][] = new byte[16][500];
   Session peer;
   static boolean sFlag = false;
   static byte userId;
@@ -41,7 +40,7 @@ public class AudioSession implements Runnable{
 
   }
   public void run(){
-  Scanner read= new Scanner(System.in);
+    Scanner read= new Scanner(System.in);
 
     while(true){
       System.out.print("Wish to Speak: ");
@@ -63,7 +62,7 @@ public class AudioSession implements Runnable{
   }
 
   public void captureAudio() {
-      System.out.println("On Capture Audio");
+    System.out.println("On Capture Audio");
     try {
       Mixer.Info[] mixerInfo = AudioSystem.getMixerInfo();    //get available mixers
       System.out.println("Available mixers:");
@@ -159,14 +158,6 @@ public class AudioSession implements Runnable{
     userId = (byte)(id%500);
   }
 
-  public byte[][] initializeMemBuffer(){
-    byte[][] buffer = new byte[16][500];
-    for(int i=0;i<16;++i)
-    {
-      buffer[i] = null;
-    }
-    return buffer;
-  }
 
   public void play() {
     byteArrayOutputStream = new ByteArrayOutputStream();
@@ -175,9 +166,8 @@ public class AudioSession implements Runnable{
     try {
       byte[] buffer=new byte[500];
       int seqNum= 0;
-      int packetLoss = 0;
-      memBuffer = initializeMemBuffer();
       int prevUserId = 0;
+
       //Play non-stop
       while (!stopCapture) {
 
@@ -211,40 +201,27 @@ public class AudioSession implements Runnable{
             sFlag = true;
             continue;
           }
-          //System.out.println("Expected: "+seqNum+" "+"Arrived: "+currentPacket);
+          System.out.println("Expected: "+seqNum+" "+"Arrived: "+currentPacket);
           if(currentPacket != seqNum) {
-            //System.out.println("Not in Sequence");
-            if(memBuffer[seqNum] == null) {
-              //System.out.println("Not in Buffer");
-              memBuffer[currentPacket] = Arrays.copyOf(buffer, 500);
-              ++packetLoss;
-              if(packetLoss > 3){
-                packetLoss = 0;
-                continue;
-              }
-              else{
-                continue;
-              }
-            }
-            else{
-            //  System.out.println("Exist in Buffer: "+seqNum);
-              buffer = Arrays.copyOf(memBuffer[seqNum], 500);
-              memBuffer[seqNum] = null;
-              memBuffer[currentPacket] = Arrays.copyOf(buffer, 500);
-            }
+            PacketOrder packetData = new PacketOrder(seqNum,currentPacket, buffer);
+            buffer = packetData.getOrder();
+            System.out.println("Not in Sequence");
+          }
+          if(buffer==null){
+            continue;
           }
           //------------------------------------------------------------------------------------------------------
 
           //Play data in temp buffer
           byteArrayOutputStream.write(buffer, 0, 500);
-          //System.out.println("Playing("+speaker+"): "+buffer[499]);
+          System.out.println("Playing("+speaker+"): "+buffer[499]);
           sourceDataLine.write(buffer, 0, 500);   //playing audio available in tempBuffer
 
           //--------------------------------------------------------------------------------------------------------
           ++seqNum;
           seqNum %= 16;
           if(seqNum == 0){
-            memBuffer = initializeMemBuffer();
+            PacketOrder.memBufferToNull();
           }
         }
       }
