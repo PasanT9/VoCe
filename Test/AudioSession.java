@@ -201,9 +201,9 @@ public class AudioSession implements Runnable{
             sFlag = true;
             continue;
           }
-          System.out.println("Expected: "+seqNum+" "+"Arrived: "+currentPacket);
+          //System.out.println("Expected: "+seqNum+" "+"Arrived: "+currentPacket);
           if(currentPacket != seqNum) {
-            System.out.println("Not in Sequence");
+          //  System.out.println("Not in Sequence");
             PacketOrder packetData = new PacketOrder(seqNum,currentPacket, buffer);
             buffer = Arrays.copyOf(packetData.getOrder(),200);
             if(buffer[199]==-1){
@@ -216,14 +216,14 @@ public class AudioSession implements Runnable{
           //Play data in temp buffer
           PacketOrder.packetLoss = 0;
           byteArrayOutputStream.write(buffer, 0, 200);
-          System.out.println("Playing("+speaker+"): "+buffer[199]);
+          //System.out.println("Playing("+speaker+"): "+buffer[199]);
           sourceDataLine.write(buffer, 0, 200);   //playing audio available in tempBuffer
 
           //--------------------------------------------------------------------------------------------------------
           ++seqNum;
           seqNum %= 16;
           if(seqNum == 0){
-            System.out.println("Flushing Buffer");
+            //System.out.println("Flushing Buffer");
             PacketOrder.memBufferToNull();
           }
         }
