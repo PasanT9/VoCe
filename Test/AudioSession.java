@@ -31,6 +31,8 @@ public class AudioSession implements Runnable{
   static boolean sFlag = false;
   static byte userId;
   static boolean fFlag = false;
+  int totalPackets = 0;
+  int corruptedPackets = 0;
 
 
   public AudioSession(Session peer) {
@@ -43,9 +45,9 @@ public class AudioSession implements Runnable{
     Scanner read= new Scanner(System.in);
 
     while(true){
-      System.out.print("Wish to Speak: ");
+      System.out.println("Wish to Speak(y):");
       String input = read.nextLine();
-      if(input.equals("YES")){
+      if(input.equals("y")){
         fFlag = true;
       }
     }
@@ -158,6 +160,12 @@ public class AudioSession implements Runnable{
     userId = (byte)(id%500);
   }
 
+  class gatherData extends TimerTask{
+    public void run(){
+      System.out.println("1 minute passed");
+    }
+  }
+
 
   public void play() {
     byteArrayOutputStream = new ByteArrayOutputStream();
@@ -167,6 +175,20 @@ public class AudioSession implements Runnable{
       int seqNum= 0;
       int prevUserId = 0;
       PacketOrder.packetLoss = 0;
+      PacketOrder.outOfOrderPackets = 0;
+      TimerTask task = new TimerTask(){
+        public void run(){
+          System.out.println("Total Packets: "+ totalPackets);
+          System.out.println("Corrupted Packets: "+ corruptedPackets);
+          System.out.println("Out Of Order Packets: "+ PacketOrder.outOfOrderPackets);
+          totalPackets = 0;
+          corruptedPackets = 0;
+          PacketOrder.outOfOrderPackets = 0;
+        }
+      };
+      Timer timer = new Timer();
+      timer.schedule(task, new Date(), 1000*60);
+
 
       //Play non-stop
       while (!stopCapture) {
@@ -197,16 +219,17 @@ public class AudioSession implements Runnable{
 
           }
           else if(speaker == userId){
-            System.out.println("Speaking");
+            //  System.out.println("Speaking");
             sFlag = true;
             continue;
           }
+          ++totalPackets;
           //System.out.println("Expected: "+seqNum+" "+"Arrived: "+currentPacket);
           if(currentPacket != seqNum) {
-          //  System.out.println("Not in Sequence");
+            //  System.out.println("Not in Sequence");
             PacketOrder packetData = new PacketOrder(seqNum,currentPacket, buffer);
             buffer = Arrays.copyOf(packetData.getOrder(),202);
-            if(buffer[201]==-1){
+            if(buffer[201]==-1) {
               seqNum = buffer[200];
               continue;
             }
@@ -216,7 +239,7 @@ public class AudioSession implements Runnable{
           //Play data in temp buffer
           PacketOrder.packetLoss = 0;
           byteArrayOutputStream.write(buffer, 0, 200);
-          //System.out.println("Playing("+speaker+"): "+buffer[199]);
+          System.out.println("Playing("+speaker+"): "+buffer[199]);
           sourceDataLine.write(buffer, 0, 200);   //playing audio available in tempBuffer
 
           //--------------------------------------------------------------------------------------------------------
@@ -226,6 +249,9 @@ public class AudioSession implements Runnable{
             //System.out.println("Flushing Buffer");
             PacketOrder.memBufferToNull();
           }
+        }
+        else{
+          ++corruptedPackets;
         }
       }
       byteArrayOutputStream.close();

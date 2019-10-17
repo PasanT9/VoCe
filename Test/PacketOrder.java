@@ -4,6 +4,8 @@ public class PacketOrder{
 
     static byte memBuffer[][] = initializeMemBuffer();
     static int packetLoss;
+    static int outOfOrderPackets;
+    static int totalPackets;
     int seqNum;
     int currentPacket;
     byte[] buffer;
@@ -19,6 +21,7 @@ public class PacketOrder{
         memBuffer[this.currentPacket] = Arrays.copyOf(this.buffer, 202);
         //System.out.println("Packet Loss: "+packetLoss);
         ++packetLoss;
+        ++outOfOrderPackets;
         if(packetLoss > 3){
           //System.out.println("Drop packet");
           ++this.seqNum;
