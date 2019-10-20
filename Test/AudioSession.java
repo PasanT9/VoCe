@@ -20,17 +20,32 @@ import java.util.*;
 
 public class AudioSession implements Runnable{
 
+  //Mixer settings
   boolean stopCapture = false;
   ByteArrayOutputStream byteArrayOutputStream;
   AudioFormat audioFormat;
   TargetDataLine targetDataLine;
   AudioInputStream audioInputStream;
   SourceDataLine sourceDataLine;
-  byte tempBuffer[] = new byte[202];
+
+  //To change packet size
+  static final int packetSize = 500;
+  byte tempBuffer[] = new byte[packetSize+2];
+
+  //Connection data
   Session peer;
-  static boolean sFlag = false;
+
+  //Unique id to each user([-500,500])
   static byte userId;
+
+  //Flags to stop recording
+  static boolean sFlag = false;
   static boolean fFlag = false;
+
+  //Flags to mute audio
+  static boolean mFlag = false;
+
+  //Extra data for testing
   int totalPackets = 0;
   int corruptedPackets = 0;
 
@@ -38,17 +53,34 @@ public class AudioSession implements Runnable{
   public AudioSession(Session peer) {
     this.peer = peer;
   }
-  public AudioSession(){
 
+
+  public AudioSession(){
   }
+
+  //Thread to recieve User inputs
   public void run(){
     Scanner read= new Scanner(System.in);
-
+    System.out.println("Commands:");
+    System.out.println("\texit-Exit program");
+    System.out.println("\tmute-Stop hearing audio");
+    System.out.println("\tunmute-Undo mute operation");
     while(true){
       System.out.println("Wish to Speak(y):");
       String input = read.nextLine();
       if(input.equals("y")){
         fFlag = true;
+      }
+      else if(input.equals("exit")){
+        System.exit(0);
+      }
+      else if(input.equals("mute")){
+        System.out.println("Mute: ON");
+        mFlag = true;
+      }
+      else if(input.equals("unmute")){
+        System.out.println("Mute: OFF");
+        mFlag = false;
       }
     }
 
@@ -64,18 +96,14 @@ public class AudioSession implements Runnable{
   }
 
   public void captureAudio() {
-    System.out.println("On Capture Audio");
     try {
       Mixer.Info[] mixerInfo = AudioSystem.getMixerInfo();    //get available mixers
-      System.out.println("Available mixers:");
       Mixer mixer = null;
       for (int cnt = 0; cnt < mixerInfo.length; cnt++) {
-        System.out.println(cnt + " " + mixerInfo[cnt].getName());
         mixer = AudioSystem.getMixer(mixerInfo[cnt]);
 
         Line.Info[] lineInfos = mixer.getTargetLineInfo();
         if (lineInfos.length >= 1 && lineInfos[0].getLineClass().equals(TargetDataLine.class)) {
-          System.out.println(cnt + " Mic is supported!");
           break;
         }
       }
@@ -102,31 +130,40 @@ public class AudioSession implements Runnable{
     }
 
   }
+
+  //Capture packets
   public void capture() {
+
+    //Update User Id
     getHashId();
-    System.out.println("user: "+ userId);
+    System.out.println("User ID: "+ userId);
     byteArrayOutputStream = new ByteArrayOutputStream();
     stopCapture = false;
     try {
       int seq = 0;
+
+      //Thread to get user inputs
       Thread i = new Thread(new AudioSession());
       i.start();
-      //Record non-stop
       while (!stopCapture) {
-
         //Read from mic and store in temp buffer
         targetDataLine.read(tempBuffer, 0, tempBuffer.length-2);  //capture sound into tempBuffer
+
+        //Sequence numbers for packet [0,15]
         seq = seq%16;
 
-
+        //To stop recording
         if(fFlag){
           sFlag = true;
           fFlag = false;
           seq = 0;
         }
-        tempBuffer[201] = (byte)seq++;
-        tempBuffer[200] = userId;
+
+        //write recorded data to buffer
+        tempBuffer[packetSize+1] = (byte)seq++;
+        tempBuffer[packetSize] = userId;
         DatagramPacket packet = new DatagramPacket(tempBuffer, tempBuffer.length, peer.ip, peer.port);
+
         //Send whats in buffer to the server using sockets
         if(sFlag){
           peer.socket.send(packet);
@@ -139,6 +176,7 @@ public class AudioSession implements Runnable{
     }
   }
 
+  //Hash function that updates User ID
   private void getHashId(){
     String ip="";
     try{
@@ -160,104 +198,114 @@ public class AudioSession implements Runnable{
     userId = (byte)(id%500);
   }
 
-  class gatherData extends TimerTask{
-    public void run(){
-      System.out.println("1 minute passed");
-    }
-  }
 
-
+  //Play recieved audio pacekts
   public void play() {
     byteArrayOutputStream = new ByteArrayOutputStream();
     stopCapture = false;
 
     try {
+      //Data to remeber State of packets and user
       int seqNum= 0;
       int prevUserId = 0;
-      PacketOrder.packetLoss = 0;
+
+      //To test the program
+      //---------------------------------------------------------------------------------------------
+
+      /*PacketOrder.packetLoss = 0;
       PacketOrder.outOfOrderPackets = 0;
+      PacketOrder.bufferHits = 0;
       TimerTask task = new TimerTask(){
-        public void run(){
-          System.out.println("Total Packets: "+ totalPackets);
-          System.out.println("Corrupted Packets: "+ corruptedPackets);
-          System.out.println("Out Of Order Packets: "+ PacketOrder.outOfOrderPackets);
-          totalPackets = 0;
-          corruptedPackets = 0;
-          PacketOrder.outOfOrderPackets = 0;
+      public void run(){
+      System.out.println("Total Packets: "+ totalPackets);
+      System.out.println("Corrupted Packets: "+ corruptedPackets);
+      System.out.println("Out Of Order Packets: "+ PacketOrder.outOfOrderPackets);
+      System.out.println("Buffer Hits: "+ PacketOrder.bufferHits);
+      totalPackets = 0;
+      corruptedPackets = 0;
+      PacketOrder.outOfOrderPackets = 0;
+      PacketOrder.bufferHits = 0;
+    }
+  };
+  Timer timer = new Timer();
+  timer.schedule(task, new Date(), 1000*60);*/
+
+  //----------------------------------------------------------------------------------------------------
+
+  //Play non-stop
+  while (!stopCapture) {
+    byte[] buffer=new byte[packetSize+2];
+    DatagramPacket packet=new DatagramPacket(buffer, buffer.length);
+
+    //Get data recieved to socket
+    peer.socket0.receive(packet);
+    buffer = packet.getData();
+
+    //Drop corrupted packets here
+    if (buffer[packetSize+1] >= 0 && buffer[packetSize+1] <= 15) {
+
+      //Get data from recieved bytes array
+      int currentPacket = buffer[packetSize+1];
+      int speaker = buffer[packetSize];
+
+      //To stop playing your own records
+      if(speaker != userId){
+        if(prevUserId == 0){
+          prevUserId = speaker;
         }
-      };
-      Timer timer = new Timer();
-      timer.schedule(task, new Date(), 1000*60);
-
-
-      //Play non-stop
-      while (!stopCapture) {
-        byte[] buffer=new byte[202];
-        DatagramPacket packet=new DatagramPacket(buffer, buffer.length);
-
-        peer.socket0.receive(packet);
-        buffer = packet.getData();
-
-        //------------------------------------------------------------------------------------------------------
-        if (buffer[201] >= 0 && buffer[201] <= 15) {
-
-          int currentPacket = buffer[201];
-          int speaker = buffer[200];
-          //System.out.println(speaker+" "+userId);
-          if(speaker != userId){
-            //System.out.println("Another Speaking");
-            if(prevUserId == 0){
-              //System.out.println("First Speaker");
-              prevUserId = speaker;
-            }
-            else if(prevUserId != speaker){
-              seqNum = 0;
-              prevUserId = speaker;
-              //System.out.println("Changed Speaker");
-            }
-            sFlag = false;
-
-          }
-          else if(speaker == userId){
-            //  System.out.println("Speaking");
-            sFlag = true;
-            continue;
-          }
-          ++totalPackets;
-          //System.out.println("Expected: "+seqNum+" "+"Arrived: "+currentPacket);
-          if(currentPacket != seqNum) {
-            //  System.out.println("Not in Sequence");
-            PacketOrder packetData = new PacketOrder(seqNum,currentPacket, buffer);
-            buffer = Arrays.copyOf(packetData.getOrder(),202);
-            if(buffer[201]==-1) {
-              seqNum = buffer[200];
-              continue;
-            }
-          }
-          //------------------------------------------------------------------------------------------------------
-
-          //Play data in temp buffer
-          PacketOrder.packetLoss = 0;
-          byteArrayOutputStream.write(buffer, 0, 200);
-          System.out.println("Playing("+speaker+"): "+buffer[199]);
-          sourceDataLine.write(buffer, 0, 200);   //playing audio available in tempBuffer
-
-          //--------------------------------------------------------------------------------------------------------
-          ++seqNum;
-          seqNum %= 16;
-          if(seqNum == 0){
-            //System.out.println("Flushing Buffer");
-            PacketOrder.memBufferToNull();
-          }
+        else if(prevUserId != speaker){
+          seqNum = 0;
+          prevUserId = speaker;
         }
-        else{
-          ++corruptedPackets;
+        sFlag = false;
+
+      }
+      else if(speaker == userId){;
+        sFlag = true;
+        continue;
+      }
+
+      ++totalPackets;
+      //System.out.println("Expected: "+seqNum+" "+"Arrived: "+currentPacket);
+
+      //If packets are outof order
+      if(currentPacket != seqNum) {
+        //  System.out.println("Not in Sequence");
+
+        //Create PacketOrder object get correct packet order
+        PacketOrder packetData = new PacketOrder(seqNum,currentPacket, buffer);
+        buffer = Arrays.copyOf(packetData.getOrder(),packetSize+2);
+        if(buffer[packetSize+1]==-1) {
+          seqNum = buffer[packetSize];
+          continue;
         }
       }
-      byteArrayOutputStream.close();
-    } catch (IOException e) {
-      System.out.println(e);
-      System.exit(0);
+      PacketOrder.packetLoss = 0;
+
+      //If not mute play audio
+      if(!mFlag){
+        byteArrayOutputStream.write(buffer, 0, packetSize);
+        //  System.out.println("Playing("+speaker+"): "+buffer[packetSize+1]);
+        sourceDataLine.write(buffer, 0, packetSize);   //playing audio available in tempBuffer
+      }
+
+      //Updates sequence number
+      ++seqNum;
+      seqNum %= 16;
+
+      //After 15 packets flush memory buffer
+      if(seqNum == 0){
+        PacketOrder.memBufferToNull();
+      }
+    }
+    else{
+      ++corruptedPackets;
     }
   }
+  byteArrayOutputStream.close();
+} catch (IOException e) {
+  System.out.println(e);
+  System.exit(0);
+}
+}
 }

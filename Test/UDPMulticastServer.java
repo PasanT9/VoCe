@@ -6,22 +6,38 @@ import java.util.*;
 
 public class UDPMulticastServer implements Runnable{
 
-public void run() {
-  try{
-    DatagramSocket socket = new DatagramSocket();
-    InetAddress group = InetAddress.getByName("233.0.0.1");
-    int port = 4321;
+  String ipAddress;
 
-    Session peer = new Session(socket, group, port);
-    AudioSession audio = new AudioSession(peer);
-    audio.captureAudio();
-    audio.capture();
-
-    socket.close();
-  }
-  catch(IOException ex){
-    ex.printStackTrace();
+  public UDPMulticastServer(String ipAddress){
+    this.ipAddress = ipAddress;
   }
 
-}
+  public void run() {
+    DatagramSocket socket = null;
+    try{
+
+      //Create a Datagram socket and connect
+      socket = new DatagramSocket();
+      InetAddress group = InetAddress.getByName(this.ipAddress);
+      int port = 4321;
+
+      //Create a session object to store connection data
+      Session peer = new Session(socket, group, port);
+
+      //Pass session data to AudioSession object
+      AudioSession audio = new AudioSession(peer);
+
+      //Mixer setting
+      audio.captureAudio();
+
+      //Start capturing audio
+      audio.capture();
+    }
+    catch(IOException ex){
+    }
+    finally{
+      socket.close();
+    }
+
+  }
 }
