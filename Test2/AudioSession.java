@@ -39,8 +39,8 @@ public class AudioSession implements Runnable{
   static byte userId;
 
   //Flags to stop recording
-  static boolean sFlag = false;
-  static boolean fFlag = false;
+  static boolean sFlag = true;
+  static boolean fFlag = true;
 
   //Flags to mute audio
   static boolean mFlag = false;
@@ -153,11 +153,11 @@ public class AudioSession implements Runnable{
         seq = seq%16;
 
         //To stop recording
-        if(fFlag){
+      /*  if(fFlag){
           sFlag = true;
           fFlag = false;
           seq = 0;
-        }
+        }*/
 
         //write recorded data to buffer
         tempBuffer[packetSize+1] = (byte)seq++;
